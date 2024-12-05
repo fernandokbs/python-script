@@ -40,6 +40,12 @@ server {
 
         return False
 
+    def add_entry_to_hosts(self):
+        hosts = Path('/etc/hosts')
+
+        with hosts.open("a") as f:
+            f.write("127.0.0.1    {}.test".format(self.path))
+
     def get_template(self):
         template = self.jinja2_template.from_string(self.NGINX_TEMPLATE)
         return template.render({
@@ -53,6 +59,8 @@ server {
         new_file = Path(file_name)
         new_file.touch()
         new_file.write_text(template)
+
+        self.add_entry_to_hosts()
 
 
 APPS_DIR = '/home/fernando/apps'
