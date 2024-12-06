@@ -68,7 +68,27 @@ server {
                 print(f"Error: {e}")
 
     def set_variables(self):
-        pass
+        env_file = Path("{}/.env-example".format(self.project_directory))
+        if not env_file.is_file():
+            env_file = Path("{}/.env.example".format(self.project_directory))
+
+        if env_file.is_file():
+            try:
+                subprocess.run(['cp', f'{env_file}', f'{self.project_directory}/.env'])
+            except subprocess.CalledProcessError as e:
+                print(f"Error: {e}")
+
+    def set_key(self):
+        try:
+            subprocess.run(['php', 'artisan', 'key:generate'])
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
+
+    def restart_nginx(self):
+        try:
+            subprocess.run(['services', 'nginx', 'restart'])
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
 
     def add_entry_to_hosts(self):
         hosts = Path('/etc/hosts')
@@ -82,6 +102,8 @@ server {
             self.add_entry_to_hosts()
             self.composer_install()
             self.set_variables()
+            self.set_key()
+            self.restart_nginx()
 
     @classmethod
     def run(cls, directory_name):
