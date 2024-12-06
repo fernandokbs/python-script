@@ -1,7 +1,10 @@
 from pathlib import Path
 from jinja2 import Environment
+import subprocess
 
-class Project:
+APPS_DIR = '/home/fernando/apps'
+
+class ProjectService:
     HOST_PATH = '/home/fernando/apps/'
     NGINX_PATH = '/etc/nginx/sites-enabled'
     NGINX_TEMPLATE = '''
@@ -30,6 +33,7 @@ server {
     def __init__(self, path):
         self.path = path
         self.jinja2_template = Environment()
+        self.project_directory = "{}{}".format(self.HOST_PATH, self.path)
 
     def has_nginx_config(self):
         directory_path = Path(self.NGINX_PATH)
@@ -40,17 +44,11 @@ server {
 
         return False
 
-    def add_entry_to_hosts(self):
-        hosts = Path('/etc/hosts')
-
-        with hosts.open("a") as f:
-            f.write("127.0.0.1    {}.test".format(self.path))
-
     def get_template(self):
         template = self.jinja2_template.from_string(self.NGINX_TEMPLATE)
         return template.render({
             "project_name": self.path,
-            "project_path": "{}{}".format(self.HOST_PATH, self.path)
+            "project_path": "{}".format(self.project_directory)
         })
 
     def create_nginx_config(self):
@@ -60,10 +58,35 @@ server {
         new_file.touch()
         new_file.write_text(template)
 
-        self.add_entry_to_hosts()
+    def composer_install(self):
+        vendor = Path("{}/vendor".format(self.project_directory))
 
+        if not vendor.is_dir():
+            try:
+                subprocess.run(['composer', 'install', '--no-interaction', f'--working-dir={self.project_directory}'], check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Error: {e}")
 
-APPS_DIR = '/home/fernando/apps'
+    def set_variables(self):
+        pass
+
+    def add_entry_to_hosts(self):
+        hosts = Path('/etc/hosts')
+
+        with hosts.open("a") as f:
+            f.write("127.0.0.1    {}.test \n".format(self.path))
+
+    def call(self):
+        if not self.has_nginx_config():
+            self.create_nginx_config()
+            self.add_entry_to_hosts()
+            self.composer_install()
+            self.set_variables()
+
+    @classmethod
+    def run(cls, directory_name):
+        project_service = ProjectService(directory_name)
+        project_service.call()
 
 def get_all_directories(path):
     path_obj = Path(path)
@@ -76,9 +99,7 @@ def get_all_directories(path):
 try:
     directories = get_all_directories(APPS_DIR)
     for directory in directories:
-        project = Project(directory.name)
+        ProjectService.run(directory.name)
 
-        if not project.has_nginx_config():
-            project.create_nginx_config()
 except ValueError as e:
     print(e)
