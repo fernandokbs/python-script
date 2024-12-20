@@ -102,7 +102,7 @@ server {
             self.add_entry_to_hosts()
             self.composer_install()
             self.set_variables()
-            self.set_key()
+            # self.set_key()
             self.restart_nginx()
 
     @classmethod
